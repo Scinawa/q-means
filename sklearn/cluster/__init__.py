@@ -10,6 +10,8 @@ from .affinity_propagation_ import affinity_propagation, AffinityPropagation
 from .hierarchical import (ward_tree, AgglomerativeClustering, linkage_tree,
                            FeatureAgglomeration)
 from .k_means_ import k_means, KMeans, MiniBatchKMeans
+from .d_means_ import DMeans #d_means
+
 from .dbscan_ import dbscan, DBSCAN
 from .optics_ import OPTICS, optics
 from .bicluster import SpectralBiclustering, SpectralCoclustering
@@ -21,6 +23,7 @@ __all__ = ['AffinityPropagation',
            'DBSCAN',
            'OPTICS',
            'KMeans',
+           'DMeans',
            'FeatureAgglomeration',
            'MeanShift',
            'MiniBatchKMeans',
