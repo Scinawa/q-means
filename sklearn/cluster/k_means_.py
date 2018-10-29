@@ -579,7 +579,8 @@ def _kmeans_single_lloyd(X, sample_weight, n_clusters, max_iter=300,
                             precompute_distances=precompute_distances,
                             distances=distances)
 
-    print( "hey sweety, we did {} iterations ".format(counter_iter))
+    if counter_iter == max_iter:
+        print( "We reached {} iterations ".format(counter_iter))
     return best_labels, best_inertia, best_centers, i + 1
 
 

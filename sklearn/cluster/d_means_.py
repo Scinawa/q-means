@@ -300,7 +300,7 @@ def k_means(X, n_clusters, sample_weight=None, init='k-means++',
         Returned only if `return_n_iter` is set to True.
 
     """
-    print("we are into kmenas")
+    print("we are into DMenas")
     if n_init <= 0:
         raise ValueError("Invalid number of initializations."
                          " n_init=%d must be bigger than zero." % n_init)
@@ -592,7 +592,8 @@ def _kmeans_single_lloyd(X, sample_weight, n_clusters, max_iter=300,
             _labels_inertia(X, sample_weight, x_squared_norms, best_centers,
                             precompute_distances=precompute_distances,
                             distances=distances, delta=delta)
-    print( "hey sweety, we did {} iterations ".format(counter_iter))
+    if counter_iter == max_iter:
+        print( "We reached {} iterations ".format(counter_iter))
     return best_labels, best_inertia, best_centers, i + 1
 
 
