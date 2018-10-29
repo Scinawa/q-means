@@ -300,7 +300,8 @@ def k_means(X, n_clusters, sample_weight=None, init='k-means++',
         Returned only if `return_n_iter` is set to True.
 
     """
-    print("we are into DMenas")
+    if verbose:
+        print("We are into DMenas")
     if n_init <= 0:
         raise ValueError("Invalid number of initializations."
                          " n_init=%d must be bigger than zero." % n_init)
@@ -592,8 +593,9 @@ def _kmeans_single_lloyd(X, sample_weight, n_clusters, max_iter=300,
             _labels_inertia(X, sample_weight, x_squared_norms, best_centers,
                             precompute_distances=precompute_distances,
                             distances=distances, delta=delta)
-    if counter_iter == max_iter:
-        print( "We reached {} iterations ".format(counter_iter))
+    if verbose:
+        if counter_iter == max_iter:
+            print( "Reached {} iterations of d-means".format(counter_iter))
     return best_labels, best_inertia, best_centers, i + 1
 
 
@@ -1229,8 +1231,10 @@ class DMeans(BaseEstimator, ClusterMixin, TransformerMixin):
 
         X = self._check_test_data(X)
         x_squared_norms = row_norms(X, squared=True)
+        #import pdb
+        #pdb.set_trace()
         return _labels_inertia(X, sample_weight, x_squared_norms,
-                               self.cluster_centers_)[0]
+                               self.cluster_centers_, self.delta)[0]
 
     def score(self, X, y=None, sample_weight=None):
         """Opposite of the value of X on the K-means objective.
@@ -1256,7 +1260,7 @@ class DMeans(BaseEstimator, ClusterMixin, TransformerMixin):
 
         X = self._check_test_data(X)
         x_squared_norms = row_norms(X, squared=True)
-        return -_labels_inertia(X, sample_weight, x_squared_norms,
+        return _labels_inertia(X, sample_weight, x_squared_norms,
                                 self.cluster_centers_)[1]
 
 
