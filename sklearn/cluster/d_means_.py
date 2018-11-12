@@ -9,6 +9,8 @@
 #          Olivier Grisel <olivier.grisel@ensta.org>
 #          Mathieu Blondel <mathieu@mblondel.org>
 #          Robert Layton <robertlayton@gmail.com>
+
+# (d-means) Alessandro Luongo <aluongo@irif.fr>
 # License: BSD 3 clause
 
 from __future__ import division
@@ -18,7 +20,7 @@ import random
 
 import numpy as np
 import scipy.sparse as sp
-import scipy as sporcamadonna
+import scipy
 
 from ..base import BaseEstimator, ClusterMixin, TransformerMixin
 from ..metrics.pairwise import euclidean_distances
@@ -190,7 +192,7 @@ def _check_sample_weight(X, sample_weight):
 def k_means(X, n_clusters, sample_weight=None, init='k-means++',
             precompute_distances=False, n_init=10, max_iter=300,
             verbose=False, tol=1e-4, random_state=None, copy_x=True,
-            n_jobs=None, algorithm="auto", delta=None, return_n_iter=False):
+            n_jobs=None, algorithm="auto", delta=None, squared_distances=None, return_n_iter=False):
     """K-means clustering algorithm.
 
     Read more in the :ref:`User Guide <k_means>`.
@@ -383,7 +385,7 @@ def k_means(X, n_clusters, sample_weight=None, init='k-means++',
                 X, sample_weight, n_clusters, max_iter=max_iter, init=init,
                 verbose=verbose, precompute_distances=precompute_distances,
                 tol=tol, x_squared_norms=x_squared_norms,
-                random_state=random_state, delta=delta)
+                random_state=random_state, delta=delta, squared_distances=squared_distances)
             # determine if these results are the best so far
             if best_inertia is None or inertia < best_inertia:
                 best_labels = labels.copy()
@@ -460,7 +462,7 @@ def _kmeans_single_elkan(X, sample_weight, n_clusters, max_iter=300,
 def _kmeans_single_lloyd(X, sample_weight, n_clusters, max_iter=300,
                          init='k-means++', verbose=False, x_squared_norms=None,
                          random_state=None, tol=1e-4,
-                         precompute_distances=True, delta=None):
+                         precompute_distances=True, delta=None, squared_distances=1):
     """A single run of k-means, assumes preparation completed prior.
 
     Parameters
@@ -551,7 +553,7 @@ def _kmeans_single_lloyd(X, sample_weight, n_clusters, max_iter=300,
         labels, distance, inertia = \
             _labels_inertia(X, sample_weight, x_squared_norms, centers,
                             precompute_distances=precompute_distances,
-                            distances=distances, delta=delta)
+                            distances=distances, delta=delta, squared_distances=squared_distances)
 
         #print("what type are labels?")
         #pdb.set_trace()
@@ -559,11 +561,7 @@ def _kmeans_single_lloyd(X, sample_weight, n_clusters, max_iter=300,
 
 
         # computation of the means is also called the M-step of EM
-        if sp.issparse(X):
-            centers = _k_means._centers_sparse(X, sample_weight, labels,
-                                               n_clusters, distances)
-        else:
-            centers = _centers_dense_sdrena(X, sample_weight, labels,
+        centers = _centers_dense_hacked(X, sample_weight, labels,
                                               n_clusters, distances)
 
         #print("did we just finished an iteration?")
@@ -592,14 +590,14 @@ def _kmeans_single_lloyd(X, sample_weight, n_clusters, max_iter=300,
         best_labels, distances, best_inertia = \
             _labels_inertia(X, sample_weight, x_squared_norms, best_centers,
                             precompute_distances=precompute_distances,
-                            distances=distances, delta=delta)
+                            distances=distances, delta=delta, squared_distances=squared_distances)
     if verbose:
         if counter_iter == max_iter:
             print( "Reached {} iterations of d-means".format(counter_iter))
     return best_labels, best_inertia, best_centers, i + 1
 
 
-def _centers_dense_sdrena(X, sample_weight, labels, n_clusters,  distances):
+def _centers_dense_hacked(X, sample_weight, labels, n_clusters,  distances):
     """M step of the K-means EM algorithm (hacked)
 
     Computation of cluster centers / means.
@@ -734,7 +732,7 @@ def _labels_inertia_precompute_dense(X, sample_weight, x_squared_norms,
 
 
 def _labels_inertia(X, sample_weight, x_squared_norms, centers, delta,
-                    precompute_distances=False,  distances=None):
+                    precompute_distances=False,  distances=None, squared_distances=None):
     """E step of the K-means EM algorithm.
 
     Compute the labels and the inertia of the given samples and centers.
@@ -770,81 +768,68 @@ def _labels_inertia(X, sample_weight, x_squared_norms, centers, delta,
     inertia : float
         Sum of squared distances of samples to their closest cluster center.
     """
-    n_samples = X.shape[0]
+    #n_samples = X.shape[0]
     sample_weight = _check_sample_weight(X, sample_weight)
     # set the default value of centers to -1 to be able to detect any anomaly
     # easily
-    labels = np.full(n_samples, -1, np.int32)
+    #labels = np.full(n_samples, -1, np.int32)
 
     #if distances is None:
     #    distances = np.zeros(shape=(0,), dtype=X.dtype)
     # distances will be changed in-place
 
-    if sp.issparse(X):
-        print("Since the matrix is sparse, this is not using "
-              "the \delta-kmeans capabilities, switching to normal kmeans")
-        inertia = _k_means._assign_labels_csr(X, sample_weight, x_squared_norms, centers, labels, distances=distances)
-    else:
-        labels, distances, inertia = hacked_assign_labels_array( X, sample_weight, x_squared_norms, centers, delta)
+    #if sp.issparse(X):
+    #    print("Since the matrix is sparse, this is not using "
+    #          "the \delta-kmeans capabilities, switching to normal kmeans")
+    #    inertia = _k_means._assign_labels_csr(X, sample_weight, x_squared_norms, centers, labels, distances=distances)
+    #else:
+    labels, distances, inertia = hacked_assign_labels_array( X, sample_weight, x_squared_norms, centers, delta, squared_distances)
+
     return labels, distances, inertia
 
 
-def hacked_assign_labels_array( X, sample_weight, x_squared_norms,  centers, delta):
+def hacked_assign_labels_array( X, sample_weight, x_squared_norms,  centers, delta, squared_distances):
     """Compute label assignment and inertia for a dense array
     Return the inertia (sum of squared distances to the centers).
     """
-
-    n_samples = X.shape[0]
-    inertia = 0.0
-
-    center_squared_norms = []
-
-    #for center_idx in range(n_clusters):
-    #    center_squared_norms[center_idx] = dot(n_features, &centers[center_idx, 0], center_stride,
-    #        &centers[center_idx, 0], center_stride)
-    center_squared_norms = np.square(np.linalg.norm(centers))
-
-    distances = sporcamadonna.spatial.distance.cdist(X, centers, "euclidean")
-
-
-
+    #print("wtf")
     def delta_means(distances_from_centroids, delta):
         min = np.min(distances_from_centroids)
         mins  = np.where(distances_from_centroids <= min+delta)
-        mins = mins[0] # Where returns a TUPLE with one element, just popping..
+        mins = mins[0] # np.where returns a tuple with one element, just popping..
 
         #pdb.set_trace()
-
+        ambiguities = 0
         if len(mins) > 1:
-            pass
-            #print("collision")
+            ambiguities = 1
         elif len(mins) == 1:
             pass
-            #print("none")
         else:
-            print("porcodio")
+            print("PRCD - bugs?")
 
-        # DELTAA!!!!
-        selected_label = random.choice(mins)
-
-        #label = np.where(distances_from_centroids == selected_min)
-        #pdb.set_trace()
+        selected_label = random.choice(mins)         # Pick a random element from the L(v_i) set.
+                 # label,    correct inertia, selected inertia
+        return int(selected_label), min, distances_from_centroids[selected_label], ambiguities
 
 
-        # label, correct inertia, selected inertia
-        return int(selected_label), min, distances_from_centroids[selected_label]
+    distances = scipy.spatial.distance.cdist(X, centers, "euclidean")
+    #pdb.set_trace()
 
+    if squared_distances ==1:
+        distances = np.square(distances)
 
     results = np.apply_along_axis(delta_means, 1, distances, delta)
+    labels, inertias, delta_inertia, ambiguities = results[:, 0], results[:, 1], results[:, 2], results[:,3]
 
+    #print("Ambiguities: {}".format(np.sum(ambiguities)))
 
-
-    labels, inertias, selected_inertias = results[:, 0], results[:, 1], results[:, 2]
-
-    inertia = np.sum(np.square(inertias))
-    selected_inertia = np.sum(np.square(selected_inertias))
-
-    return labels, distances, inertia
+    if squared_distances == 1:
+        inertia = np.sum(inertias)
+        delta_inertia = np.sum(delta_inertia)
+    else:  # we are doing inertia on non squared-distances, so we need to take the square..
+        inertia = np.sum(np.square(inertias))
+        delta_inertia = np.sum(np.square(delta_inertia))
+    return labels, distances, delta_inertia
 
 def _init_centroids(X, k, init, random_state=None, x_squared_norms=None,
                     init_size=None):
@@ -1070,7 +1055,7 @@ class DMeans(BaseEstimator, ClusterMixin, TransformerMixin):
     def __init__(self, n_clusters=8, init='k-means++', n_init=10,
                  max_iter=300, tol=1e-4, precompute_distances='auto',
                  verbose=0, random_state=None, copy_x=True,
-                 n_jobs=None, algorithm='full', delta=None):
+                 n_jobs=None, algorithm='full', delta=None, squared_distances=1):
 
         self.n_clusters = n_clusters
         self.init = init
@@ -1084,6 +1069,7 @@ class DMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         self.n_jobs = n_jobs
         self.algorithm = algorithm
         self.delta = delta
+        self.squared_distances = squared_distances
 
     def _check_test_data(self, X):
         X = check_array(X, accept_sparse='csr', dtype=FLOAT_DTYPES)
@@ -1124,7 +1110,7 @@ class DMeans(BaseEstimator, ClusterMixin, TransformerMixin):
                 precompute_distances=self.precompute_distances,
                 tol=self.tol, random_state=random_state, copy_x=self.copy_x,
                 n_jobs=self.n_jobs, algorithm=self.algorithm,
-                return_n_iter=True, delta=self.delta)
+                return_n_iter=True, delta=self.delta, squared_distances=0)
         return self
 
     def fit_predict(self, X, y=None, sample_weight=None):
