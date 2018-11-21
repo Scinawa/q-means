@@ -1220,7 +1220,7 @@ class DMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         #import pdb
         #pdb.set_trace()
         return _labels_inertia(X, sample_weight, x_squared_norms,
-                               self.cluster_centers_, self.delta)[0]
+                               self.cluster_centers_, 0)[0]
 
     def score(self, X, y=None, sample_weight=None):
         """Opposite of the value of X on the K-means objective.
