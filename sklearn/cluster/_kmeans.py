@@ -430,31 +430,10 @@ def _kmeans_single_elkan(X, sample_weight, n_clusters, max_iter=300,
     init_bounds(X, centers, center_half_distances,
                 labels, upper_bounds, lower_bounds)
 
-#<<<<<<< HEAD:sklearn/cluster/k_means_.py
-    # iterations
-    counter_iter = 0
     for i in range(max_iter):
-        counter_iter = counter_iter +1
-        centers_old = centers.copy()
-        # labels assignment is also called the E-step of EM
-        labels, inertia = \
-            _labels_inertia(X, sample_weight, x_squared_norms, centers,
-                            precompute_distances=precompute_distances,
-                            distances=distances)
-
-        # computation of the means is also called the M-step of EM
-        if sp.issparse(X):
-            centers = _k_means._centers_sparse(X, sample_weight, labels,
-                                               n_clusters, distances)
-        else:
-            centers = _k_means._centers_dense(X, sample_weight, labels,
-                                              n_clusters, distances)
-#=======
-#    for i in range(max_iter):
-#        elkan_iter(X, sample_weight, centers, centers_new, weight_in_clusters,
-#                   center_half_distances, distance_next_center, upper_bounds,
-#                   lower_bounds, labels, center_shift, n_threads)
-#>>>>>>> upstream/master:sklearn/cluster/_kmeans.py
+        elkan_iter(X, sample_weight, centers, centers_new, weight_in_clusters,
+                   center_half_distances, distance_next_center, upper_bounds,
+                   lower_bounds, labels, center_shift, n_threads)
 
         # compute new pairwise distances between centers and closest other
         # center of each center for next iterations
@@ -483,13 +462,7 @@ def _kmeans_single_elkan(X, sample_weight, n_clusters, max_iter=300,
                    lower_bounds, labels, center_shift, n_threads,
                    update_centers=False)
 
-#<<<<<<< HEAD:sklearn/cluster/k_means_.py
-    if counter_iter == max_iter:
-        print( "We reached {} iterations ".format(counter_iter))
-    return best_labels, best_inertia, best_centers, i + 1
-#=======
-#    inertia = _inertia(X, sample_weight, centers, labels)
-#>>>>>>> upstream/master:sklearn/cluster/_kmeans.py
+    inertia = _inertia(X, sample_weight, centers, labels)
 
     return labels, inertia, centers, i + 1
 
